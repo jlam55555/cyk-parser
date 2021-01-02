@@ -1,9 +1,20 @@
+"""
+cnfgrammar.py: Defining the CNF grammar data structures and utilities, including
+the CYK parser algorithm
+"""
+
 # __future__.annotations turns type annotations into a string so return type of
 # CNFGrammar.load can validly be its own enclosing class
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Union
+
+# useful type declarations
+# forward (recursive) type definitions allowed by __future__.annotations
+CNFGrammarRHS = Union[Tuple[str], Tuple[str, str]]
+CNFGrammarLHS = List[str]
+ParseTree = Union[Tuple[str, 'ParseTree', 'ParseTree'], Tuple[str, str]]
 
 
 class CNFGrammar:
@@ -16,7 +27,7 @@ class CNFGrammar:
     non-terminals or a single terminal symbol).
     """
 
-    def __init__(self, rules: Dict[Tuple[str, ...], List[str]]):
+    def __init__(self, rules: Dict[CNFGrammarRHS, CNFGrammarLHS]):
         """
         Creation of CNF instance basically wraps a dictionary representing
         a lookup table of the grammar
@@ -27,7 +38,7 @@ class CNFGrammar:
         """
         self._rules = rules
 
-    def lookup(self, first: str, second: str = None) -> List[str]:
+    def lookup(self, first: str, second: str = None) -> CNFGrammarLHS:
         """
         Looks up a rule (given the RHS) in the CNF grammar. Returns all matching
         LHS nonterminals.
@@ -65,11 +76,9 @@ class CNFGrammar:
 
         return CNFGrammar(rules)
 
-    def cyk_parse(self, words: List[str]) -> List[str]:
+    def cyk_parse(self, words: List[str]) -> List[ParseTree]:
         """
         Parsing using the Cocke-Younger-Kasami DP algorithm
-
-        TODO: fix ret type
 
         :param words:   sentence to parse
         :return:        all valid parses of the sentence
@@ -90,7 +99,6 @@ class CNFGrammar:
         for j, word in enumerate(words):
 
             # find non-terminals that derive this word
-            # TODO: is this terminology correct?
             dp[j][j] = set(self.lookup(word))
             for parse in dp[j][j]:
                 bt[j][j][parse].append(None)
@@ -107,7 +115,7 @@ class CNFGrammar:
                 dp[i][j].update(bt[i][j].keys())
 
         # dfs to generate all valid parse trees
-        def gen_parse_tree_dfs(start: int, end: int, target_nt: str) -> List[str]:
+        def gen_pt_dfs(start: int, end: int, target_nt: str) -> List[ParseTree]:
             # if it lies on diagonal, it's a leaf node
             if start == end:
                 return [(target_nt, words[start])] \
@@ -115,14 +123,14 @@ class CNFGrammar:
             # else it's not a leaf node
             parse_trees = []
             for i, k, j, nt1, nt2 in bt[start][end][target_nt]:
-                nt1_parse_trees = gen_parse_tree_dfs(i, k, nt1)
-                nt2_parse_trees = gen_parse_tree_dfs(k+1, j, nt2)
+                nt1_parse_trees = gen_pt_dfs(i, k, nt1)
+                nt2_parse_trees = gen_pt_dfs(k+1, j, nt2)
                 parse_trees += [(target_nt, nt1_pt, nt2_pt)
                                 for nt1_pt in nt1_parse_trees
                                 for nt2_pt in nt2_parse_trees]
             return parse_trees
 
-        return gen_parse_tree_dfs(0, N-1, 'S')
+        return gen_pt_dfs(0, N-1, 'S')
 
     def cyk_parse_pp(self, words: List[str]) -> List[str]:
         """
@@ -134,8 +142,7 @@ class CNFGrammar:
         """
 
         # use preorder dfs to print the tree with indenting
-        # TODO: more strictly type the tree
-        def preorder_dfs(root, indent: int = 0) -> str:
+        def preorder_dfs(root: ParseTree, indent: int = 0) -> str:
             tab = '\t'
             if len(root) == 2:
                 return f'{tab*indent}[{root[0]} {root[1]}]'
@@ -145,20 +152,3 @@ class CNFGrammar:
                        f'{preorder_dfs(root[2], indent+1)}]'
 
         return [preorder_dfs(tree) for tree in self.cyk_parse(words)]
-
-
-if __name__ == '__main__':
-    cnf_filename = str(input('Enter path to CNF file: '))
-    grammar = CNFGrammar.load(cnf_filename)
-
-    while True:
-        sentence = str(input('Enter a sentence for parsing: '))
-        if sentence == 'quit':
-            break
-
-        # pretty-print parse trees
-        parse_trees = grammar.cyk_parse_pp(sentence.split(' '))
-        if len(parse_trees) == 0:
-            print('No valid parses')
-        for i, tree in enumerate(parse_trees):
-            print(f'Parse {i+1}:\n{tree}')
