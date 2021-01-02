@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 
 class CNFGrammar:
@@ -17,7 +16,7 @@ class CNFGrammar:
     TODO: move cyk_parser into this class
     """
 
-    def __init__(self, rules: Dict[Tuple[str, ...], Collection[str]]):
+    def __init__(self, rules: Dict[Tuple[str, ...], List[str]]):
         """
         TODO: add this
 
@@ -27,7 +26,7 @@ class CNFGrammar:
         """
         self._rules = rules
 
-    def lookup(self, first: str, second: str = None) -> Collection[str]:
+    def lookup(self, first: str, second: str = None) -> List[str]:
         """
         TODO: add this
         """
@@ -65,7 +64,7 @@ class CNFGrammar:
 
         return CNFGrammar(rules)
 
-    def cyk_parse(self, words: Collection[str]) -> Collection[str]:
+    def cyk_parse(self, words: List[str]) -> List[str]:
         """
         Parsing using the Cocke-Younger-Kasami DP algorithm
 
@@ -92,6 +91,8 @@ class CNFGrammar:
             # find non-terminals that derive this word
             # TODO: is this terminology correct?
             dp[j][j] = set(self.lookup(word))
+            for parse in dp[j][j]:
+                bt[j][j][parse].append(None)
 
             # find all parses for substring [i, j] for all splits k
             # (where the split is [i, k] and [k+1, j] b/c endpoints inclusive)
@@ -107,7 +108,7 @@ class CNFGrammar:
                             #     (i, k, j, nt1, nt2)
                             # parses += self.lookup(nt1, nt2)
 
-                [bt[i][j][parse].append((i, k, nt1, nt2))
+                [bt[i][j][parse].append((i, k, j, nt1, nt2))
                  for k in range(i, j)
                  for nt1 in dp[i][k]
                  for nt2 in dp[k+1][j]
@@ -125,7 +126,27 @@ class CNFGrammar:
         # TODO: remove
         print(dp)
 
-        return list(dp[0][N-1])
+        # not a valid parse
+        if 'S' not in dp[0][N-1]:
+            return []
+
+        # dfs to generate all valid parse trees
+        def gen_parse_tree_dfs(start: int, end: int, target_nt: str) -> List[str]:
+            # if it lies on diagonal, perform lookup
+            if start == end:
+                return [(target_nt, words[start])] if target_nt in bt[start][end].keys() else []
+                # return [(target_nt, words[start]) for nt in bt[start][end].keys()]
+
+            parse_trees = []
+            for i, k, j, nt1, nt2 in bt[start][end][target_nt]:
+                nt1_parse_trees = gen_parse_tree_dfs(i, k, nt1)
+                nt2_parse_trees = gen_parse_tree_dfs(k+1, j, nt2)
+                parse_trees += [(target_nt, nt1_pt, nt2_pt)
+                                for nt1_pt in nt1_parse_trees
+                                for nt2_pt in nt2_parse_trees]
+            return parse_trees
+
+        return gen_parse_tree_dfs(0, N-1, 'S') # list(dp[0][N-1])
 
 
 if __name__ == '__main__':
