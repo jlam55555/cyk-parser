@@ -1,6 +1,8 @@
 # __future__.annotations turns type annotations into a string so return type of
 # CNFGrammar.load can validly be its own enclosing class
 from __future__ import annotations
+
+from collections import defaultdict
 from collections.abc import Collection
 from typing import Dict, Tuple
 
@@ -81,6 +83,10 @@ class CNFGrammar:
         #       is annoying
         dp = [[set() for _ in range(N)] for _ in range(N)]
 
+        # backtracking table for ultimately generating the parse tree
+        bt = [[defaultdict(list) for _ in range(N)] for _ in range(N)]
+
+        # cyk algorithm using dynamic programming
         for j, word in enumerate(words):
 
             # find non-terminals that derive this word
@@ -90,14 +96,28 @@ class CNFGrammar:
             # find all parses for substring [i, j] for all splits k
             # (where the split is [i, k] and [k+1, j] b/c endpoints inclusive)
             for i in range(j-1, -1, -1):
-                print(i, j)
-                parses = []
-                for k in range(i, j):
+                # backtracking tree
+                # for k in range(i, j):
                     # FIXME: ew? might be a little cleaner with list comp.
-                    for nt1 in dp[i][k]:
-                        for nt2 in dp[k+1][j]:
-                            parses += self.lookup(nt1, nt2)
-                dp[i][j].update(parses)
+                    # for nt1 in dp[i][k]:
+                    #     for nt2 in dp[k+1][j]:
+                    #         for parse in self.lookup(nt1, nt2):
+                    #             bt[i][j][parse].append((i, k, j, nt1, nt2))
+                            # bt[i][j][tuple(self.lookup(nt1, nt2))] = \
+                            #     (i, k, j, nt1, nt2)
+                            # parses += self.lookup(nt1, nt2)
+
+                [bt[i][j][parse].append((i, k, nt1, nt2))
+                 for k in range(i, j)
+                 for nt1 in dp[i][k]
+                 for nt2 in dp[k+1][j]
+                 for parse in self.lookup(nt1, nt2)]
+
+                dp[i][j].update(bt[i][j].keys())
+                # dp[i][j].update([parse
+                #                  for parses in bt[i][j].keys()
+                #                  for parse in parses])
+                # dp[i][j].update(parses)
 
                 # TODO: need to keep links back to previous step
                 #       currently is only a "recognizer," not a "parser"
