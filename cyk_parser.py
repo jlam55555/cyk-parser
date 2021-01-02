@@ -8,17 +8,18 @@ from typing import Dict, Tuple, List
 
 class CNFGrammar:
     """
-    CNF grammar parser and storage (lookup) class
+    Wrapper around a dict containing a CNF grammar lookup table, as well as
+    associated utilities (parsing a CNF description file, looking up definitions
+    in the grammar, performing CYK using this grammar)
 
     Expects CNF to be valid and flattened (i.e., RHS only can consist of two
     non-terminals or a single terminal symbol).
-
-    TODO: move cyk_parser into this class
     """
 
     def __init__(self, rules: Dict[Tuple[str, ...], List[str]]):
         """
-        TODO: add this
+        Creation of CNF instance basically wraps a dictionary representing
+        a lookup table of the grammar
 
         Tuple[str, ...] should technically be Union[Tuple[str], Tuple[str, str]]
         due to the mixing of singleton (one terminal) and two-tuple
@@ -28,7 +29,8 @@ class CNFGrammar:
 
     def lookup(self, first: str, second: str = None) -> List[str]:
         """
-        TODO: add this
+        Looks up a rule (given the RHS) in the CNF grammar. Returns all matching
+        LHS nonterminals.
         """
         if second is not None and (first, second) in self._rules:
             return self._rules[(first, second)]
@@ -53,7 +55,6 @@ class CNFGrammar:
 
                 # hash the RHS of the rule and map it to the LHS
                 # (turn RHS into a 1- or 2-tuple to make it hashable)
-                # TODO: does this work without requiring a tuple?
                 key = tuple(rule_components[2:])
 
                 # ignore second rule component (arrow)
@@ -68,6 +69,8 @@ class CNFGrammar:
         """
         Parsing using the Cocke-Younger-Kasami DP algorithm
 
+        TODO: fix ret type
+
         :param words:   sentence to parse
         :return:        all valid parses of the sentence
         """
@@ -78,8 +81,6 @@ class CNFGrammar:
         # dp[start, end] means the parses for words [start, end] (inclusive)
         # (different from the textbook, in which end is exclusive; this is
         # slightly more compact)
-        # TODO: is it inefficient to create the sets here? but type hinting
-        #       is annoying
         dp = [[set() for _ in range(N)] for _ in range(N)]
 
         # backtracking table for ultimately generating the parse tree
@@ -97,17 +98,6 @@ class CNFGrammar:
             # find all parses for substring [i, j] for all splits k
             # (where the split is [i, k] and [k+1, j] b/c endpoints inclusive)
             for i in range(j-1, -1, -1):
-                # backtracking tree
-                # for k in range(i, j):
-                    # FIXME: ew? might be a little cleaner with list comp.
-                    # for nt1 in dp[i][k]:
-                    #     for nt2 in dp[k+1][j]:
-                    #         for parse in self.lookup(nt1, nt2):
-                    #             bt[i][j][parse].append((i, k, j, nt1, nt2))
-                            # bt[i][j][tuple(self.lookup(nt1, nt2))] = \
-                            #     (i, k, j, nt1, nt2)
-                            # parses += self.lookup(nt1, nt2)
-
                 [bt[i][j][parse].append((i, k, j, nt1, nt2))
                  for k in range(i, j)
                  for nt1 in dp[i][k]
@@ -115,28 +105,14 @@ class CNFGrammar:
                  for parse in self.lookup(nt1, nt2)]
 
                 dp[i][j].update(bt[i][j].keys())
-                # dp[i][j].update([parse
-                #                  for parses in bt[i][j].keys()
-                #                  for parse in parses])
-                # dp[i][j].update(parses)
-
-                # TODO: need to keep links back to previous step
-                #       currently is only a "recognizer," not a "parser"
-
-        # TODO: remove
-        print(dp)
-
-        # not a valid parse
-        if 'S' not in dp[0][N-1]:
-            return []
 
         # dfs to generate all valid parse trees
         def gen_parse_tree_dfs(start: int, end: int, target_nt: str) -> List[str]:
-            # if it lies on diagonal, perform lookup
+            # if it lies on diagonal, it's a leaf node
             if start == end:
-                return [(target_nt, words[start])] if target_nt in bt[start][end].keys() else []
-                # return [(target_nt, words[start]) for nt in bt[start][end].keys()]
-
+                return [(target_nt, words[start])] \
+                    if target_nt in bt[start][end].keys() else []
+            # else it's not a leaf node
             parse_trees = []
             for i, k, j, nt1, nt2 in bt[start][end][target_nt]:
                 nt1_parse_trees = gen_parse_tree_dfs(i, k, nt1)
@@ -146,7 +122,29 @@ class CNFGrammar:
                                 for nt2_pt in nt2_parse_trees]
             return parse_trees
 
-        return gen_parse_tree_dfs(0, N-1, 'S') # list(dp[0][N-1])
+        return gen_parse_tree_dfs(0, N-1, 'S')
+
+    def cyk_parse_pp(self, words: List[str]) -> List[str]:
+        """
+        Parses the sentence using CNFGrammar.cyk_parse and pretty-prints
+        the result
+
+        :param words:   sentence to parse
+        :return:        arrays of pretty-printed trees
+        """
+
+        # use preorder dfs to print the tree with indenting
+        # TODO: more strictly type the tree
+        def preorder_dfs(root, indent: int = 0) -> str:
+            tab = '\t'
+            if len(root) == 2:
+                return f'{tab*indent}[{root[0]} {root[1]}]'
+            else:
+                return f'{tab*indent}[{root[0]}\n' \
+                       f'{preorder_dfs(root[1], indent+1)}\n' \
+                       f'{preorder_dfs(root[2], indent+1)}]'
+
+        return [preorder_dfs(tree) for tree in self.cyk_parse(words)]
 
 
 if __name__ == '__main__':
@@ -155,4 +153,12 @@ if __name__ == '__main__':
 
     while True:
         sentence = str(input('Enter a sentence for parsing: '))
-        print(grammar.cyk_parse(sentence.split(' ')))
+        if sentence == 'quit':
+            break
+
+        # pretty-print parse trees
+        parse_trees = grammar.cyk_parse_pp(sentence.split(' '))
+        if len(parse_trees) == 0:
+            print('No valid parses')
+        for i, tree in enumerate(parse_trees):
+            print(f'Parse {i+1}:\n{tree}')
