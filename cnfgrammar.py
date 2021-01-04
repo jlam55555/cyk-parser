@@ -112,8 +112,7 @@ class CNFGrammar:
         def gen_pt_dfs(start: int, end: int, target_nt: str) -> List[ParseTree]:
             # if it lies on diagonal, it's a leaf node
             if start == end:
-                return [(target_nt, words[start])] \
-                    if target_nt in dp[start][end].keys() else []
+                return [(target_nt, words[start])]
             # else it's not a leaf node
             parse_trees = []
             for i, k, j, nt1, nt2 in dp[start][end][target_nt]:
