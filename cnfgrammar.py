@@ -59,7 +59,7 @@ class CNFGrammar:
         :param cnf_file:    path to CNF
         :return:            CNFGrammar object
         """
-        rules = {}
+        rules = defaultdict(list)
         with open(cnf_file, 'r') as file_handle:
             for rule in file_handle.read().splitlines():
                 rule_components = rule.split(' ')
@@ -70,8 +70,6 @@ class CNFGrammar:
 
                 # ignore second rule component (arrow)
                 # allow duplicates (i.e., same RHS for multiple LHS)
-                if key not in rules:
-                    rules[key] = []
                 rules[key] += [rule_components[0]]
 
         return CNFGrammar(rules)
