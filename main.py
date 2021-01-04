@@ -15,6 +15,6 @@ if __name__ == '__main__':
         # pretty-print parse trees
         parse_trees = grammar.cyk_parse_pp(sentence.split(' '))
         if len(parse_trees) == 0:
-            print('No valid parses')
+            print('NO VALID PARSES')
         for i, tree in enumerate(parse_trees):
             print(f'Parse {i+1}:\n{tree}')

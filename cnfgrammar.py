@@ -90,39 +90,33 @@ class CNFGrammar:
         # dp[start, end] means the parses for words [start, end] (inclusive)
         # (different from the textbook, in which end is exclusive; this is
         # slightly more compact)
-        dp = [[set() for _ in range(N)] for _ in range(N)]
-
-        # backtracking table for ultimately generating the parse tree
-        bt = [[defaultdict(list) for _ in range(N)] for _ in range(N)]
+        dp = [[defaultdict(list) for _ in range(N)] for _ in range(N)]
 
         # cyk algorithm using dynamic programming
         for j, word in enumerate(words):
 
             # find non-terminals that derive this word
-            dp[j][j] = set(self.lookup(word))
-            for parse in dp[j][j]:
-                bt[j][j][parse].append(None)
+            for parse in set(self.lookup(word)):
+                dp[j][j][parse].append(None)
 
             # find all parses for substring [i, j] for all splits k
             # (where the split is [i, k] and [k+1, j] b/c endpoints inclusive)
-            for i in range(j-1, -1, -1):
-                [bt[i][j][parse].append((i, k, j, nt1, nt2))
-                 for k in range(i, j)
-                 for nt1 in dp[i][k]
-                 for nt2 in dp[k+1][j]
-                 for parse in self.lookup(nt1, nt2)]
-
-                dp[i][j].update(bt[i][j].keys())
+            [dp[i][j][parse].append((i, k, j, nt1, nt2))
+             for i in range(j-1, -1, -1)
+             for k in range(i, j)
+             for nt1 in dp[i][k]
+             for nt2 in dp[k+1][j]
+             for parse in self.lookup(nt1, nt2)]
 
         # dfs to generate all valid parse trees
         def gen_pt_dfs(start: int, end: int, target_nt: str) -> List[ParseTree]:
             # if it lies on diagonal, it's a leaf node
             if start == end:
                 return [(target_nt, words[start])] \
-                    if target_nt in bt[start][end].keys() else []
+                    if target_nt in dp[start][end].keys() else []
             # else it's not a leaf node
             parse_trees = []
-            for i, k, j, nt1, nt2 in bt[start][end][target_nt]:
+            for i, k, j, nt1, nt2 in dp[start][end][target_nt]:
                 nt1_parse_trees = gen_pt_dfs(i, k, nt1)
                 nt2_parse_trees = gen_pt_dfs(k+1, j, nt2)
                 parse_trees += [(target_nt, nt1_pt, nt2_pt)
