@@ -112,16 +112,13 @@ class CNFGrammar:
         def gen_pt_dfs(start: int, end: int, target_nt: str) -> List[ParseTree]:
             # if it lies on diagonal, it's a leaf node
             if start == end:
-                return [(target_nt, words[start])]
-            # else it's not a leaf node
-            parse_trees = []
-            for i, k, j, nt1, nt2 in dp[start][end][target_nt]:
-                nt1_parse_trees = gen_pt_dfs(i, k, nt1)
-                nt2_parse_trees = gen_pt_dfs(k+1, j, nt2)
-                parse_trees += [(target_nt, nt1_pt, nt2_pt)
-                                for nt1_pt in nt1_parse_trees
-                                for nt2_pt in nt2_parse_trees]
-            return parse_trees
+                return [(target_nt, words[start])] \
+                    if target_nt in dp[start][end] else []
+            # else it's not
+            return [(target_nt, nt1_pt, nt2_pt)
+                    for i, k, j, nt1, nt2 in dp[start][end][target_nt]
+                    for nt1_pt in gen_pt_dfs(i, k, nt1)
+                    for nt2_pt in gen_pt_dfs(k+1, j, nt2)]
 
         return gen_pt_dfs(0, N-1, 'S')
 
