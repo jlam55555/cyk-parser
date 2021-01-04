@@ -30,11 +30,10 @@ class CNFGrammar:
     def __init__(self, rules: Dict[CNFGrammarRHS, CNFGrammarLHS]):
         """
         Creation of CNF instance basically wraps a dictionary representing
-        a lookup table of the grammar
+        a lookup table of the grammar that maps the RHS of CNF rules to all
+        the LHS that derive it
 
-        Tuple[str, ...] should technically be Union[Tuple[str], Tuple[str, str]]
-        due to the mixing of singleton (one terminal) and two-tuple
-        (two non-terminals) keys (i.e., the RHS of the CFG rules)
+        :param rules:   dict representing (reverse) lookup table of grammar
         """
         self._rules = rules
 
@@ -42,6 +41,10 @@ class CNFGrammar:
         """
         Looks up a rule (given the RHS) in the CNF grammar. Returns all matching
         LHS nonterminals.
+
+        :param first:   first nonterminal in lookup
+        :param second:  second nonterminal in lookup, if applicable
+        :return:        all LHS that map to the RHS (first, ) or (first, second)
         """
         if second is not None and (first, second) in self._rules:
             return self._rules[(first, second)]
