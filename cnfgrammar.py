@@ -136,10 +136,11 @@ class CNFGrammar:
         def preorder_dfs(root: ParseTree, indent: int = 0) -> str:
             tab = '\t'
             if len(root) == 2:
-                return f'{tab*indent}[{root[0]} {root[1]}]'
+                return f'{tab*indent}[{root[0]} {root[1]}]\n'
             else:
                 return f'{tab*indent}[{root[0]}\n' \
-                       f'{preorder_dfs(root[1], indent+1)}\n' \
-                       f'{preorder_dfs(root[2], indent+1)}]'
+                       f'{preorder_dfs(root[1], indent+1)}' \
+                       f'{preorder_dfs(root[2], indent+1)}' \
+                       f'{tab*indent}]\n'
 
         return [preorder_dfs(tree) for tree in self.cyk_parse(words)]
